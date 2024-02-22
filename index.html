@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Column Layout</title>
+<!-- Include Tailwind CSS -->
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<style>
+  /* Custom CSS for positioning form elements */
+  #form {
+    display: flex;
+    flex-direction: column;
+  }
+  .field-container {
+    margin-bottom: 1rem; /* Adjust spacing between form elements */
+  }
+
+   /* Add spacing between fields in column 2 */
+   #form .field-container + .field-container {
+    margin-top: 1rem;
+  }
+ 
+  /* CSS for radio button group */
+  .radio-group {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px; /* Optional: Add margin bottom for spacing */
+  }
+ 
+  /* Style for draggable container */
+  .draggable-container {
+    cursor: move;
+    position: relative; /* Add position relative for absolute positioning of labels */
+  }
+ 
+  /* Style for labels */
+  .custom-label {
+    position: absolute;
+    top: -1.5rem;
+    left: 0;
+  }
+
+  /* Style for output column */
+  #output-column {
+    overflow-y: auto; /* Add vertical scroll if needed */
+  }
+</style>
+</head>
+<body class="h-full">
+<div class="h-full flex">
+<div class="w-1/4 bg-gray-200 p-4"> <!-- Adjusted to 25% -->
+<h2 class="text-lg font-bold mb-2"></h2>
+<!-- HTML code for drag items -->
+<div id="drag-items" class="border border-gray-300 p-4 mr-4">
+<div class="drag-item cursor-move mb-2" draggable="true" data-type="textfield">Text Field</div>
+<div class="drag-item cursor-move mb-2" draggable="true" data-type="dropdown">Drop Down</div>
+<div class="drag-item cursor-move mb-2" draggable="true" data-type="checkbox">Checkbox</div>
+<div class="drag-item cursor-move mb-2" draggable="true" data-type="radiobutton">Radio Button</div>
+</div>
+</div>
+<div id="drop-zone" class="w-2/4 bg-purple-300 p-4 "> <!-- Adjusted to 50% -->
+<h2 class="text-lg font-bold mb-2"></h2>
+
+<div id="form"></div>
+<!-- Add a button to trigger JSON download -->
+<button id="downloadJsonButton">Download JSON</button>
+</div>
+<div id="output-column" class="w-1/4 bg-gray-400 p-4"> <!-- Adjusted to 25% -->
+<h2 class="text-lg font-bold mb-2">Output</h2>
+<textarea id="json-output" class="w-full h-64 bg-gray-100 p-2" readonly></textarea>
+</div>
+</div>
+ 
+<script>
+  const dragItems = document.querySelectorAll('.drag-item');
+  const dropZone = document.getElementById('drop-zone');
+  const form = document.getElementById('form');
+  const jsonOutput = document.getElementById('json-output'); // Get JSON output textarea
+  let fieldCount = 0; // To keep track of the number of fields
+  let droppedFields = []; // To store dropped fields
+  
+  dragItems.forEach(item => {
+    item.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', item.dataset.type);
+    });
+  });
+ 
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+  });
+ 
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    const dataType = e.dataTransfer.getData('text/plain');
+    let inputElement;
+ 
+    switch(dataType) {
+      case 'textfield':
+        inputElement = createInput('text', 'Text Field');
+        break;
+      case 'dropdown':
+        inputElement = createSelect('Select Option');
+        break;
+      case 'checkbox':
+        inputElement = createInput('checkbox', 'Checkbox');
+        break;
+      case 'radiobutton':
+        inputElement = createRadioButtonGroup([
+          { value: 'Option 1', label: 'Option 1' },
+          { value: 'Option 2', label: 'Option 2' }
+        ]);
+        break;
+    }
+ 
+    if (inputElement) {
+      form.appendChild(inputElement.container);
+      // Add the dropped field to the array
+      droppedFields.push({ id: inputElement.fieldElement.id, label: inputElement.container.querySelector('.custom-label').textContent });
+    }
+  });
+ 
+  // Function to create an input element
+  function createInput(type, placeholder) {
+    return createField('input', type, placeholder);
+  }
+ 
+  // Function to create a select element
+  function createSelect(placeholder) {
+    const selectContainer = document.createElement('div');
+    selectContainer.classList.add('field-container'); // Add class for spacing
+    selectContainer.classList.add('draggable-container');
+ 
+    const label = document.createElement('label');
+    label.textContent = placeholder;
+    label.classList.add('custom-label');
+ 
+    const selectElement = document.createElement('select');
+    selectElement.id = `field-${fieldCount}`;
+    fieldCount++;
+ 
+    const option = document.createElement('option');
+    option.value = '';
+    option.text = placeholder;
+    selectElement.appendChild(option);
+ 
+    selectContainer.appendChild(label);
+    selectContainer.appendChild(selectElement);
+ 
+    // Add context menu for setting label
+    addContextMenuForField(selectElement, label);
+ 
+    return { container: selectContainer, fieldElement: selectElement };
+  }
+ 
+  // Function to create a radio button group
+  function createRadioButtonGroup(options) {
+    const container = document.createElement('div');
+    container.classList.add('radio-group');
+    container.classList.add('field-container'); // Add class for spacing
+    container.classList.add('draggable-container');
+ 
+    const groupName = `radio-group-${fieldCount}`;
+ 
+    options.forEach(option => {
+      const radioButton = document.createElement('input');
+      radioButton.type = 'radio';
+      radioButton.name = groupName;
+      radioButton.value = option.value;
+ 
+      const label = document.createElement('label');
+      label.textContent = option.label;
+ 
+      container.appendChild(radioButton);
+      container.appendChild(label);
+ 
+      // Add line break
+      container.appendChild(document.createElement('br'));
+ 
+      // Set unique ID for radio button
+      const id = `${option.label}-radio-${fieldCount}`;
+      radioButton.id = id;
+      label.htmlFor = id;
+ 
+      // Add context menu for setting label
+      addContextMenuForField(radioButton, label);
+    });
+ 
+    // Make the container draggable
+    container.draggable = true;
+ 
+    // Increment field count
+    fieldCount++;
+ 
+    return { container };
+  }
+ 
+  // Function to create a field (input or select)
+  function createField(tagName, type, placeholder) {
+    const container = document.createElement('div');
+    container.classList.add('field-container'); // Add class for spacing
+    container.classList.add('draggable-container');
+ 
+    const label = document.createElement('label');
+    label.textContent = placeholder;
+    label.classList.add('custom-label');
+ 
+    const fieldElement = document.createElement(tagName);
+    if (type) {
+      fieldElement.type = type;
+    }
+    fieldElement.placeholder = placeholder;
+ 
+    container.appendChild(label);
+    container.appendChild(fieldElement);
+ 
+    // Set unique ID
+    const id = `field-${fieldCount}`;
+    fieldElement.id = id;
+    label.htmlFor = id;
+ 
+    // Make the container draggable
+    container.draggable = true;
+ 
+    // Add context menu for setting label
+    addContextMenuForField(fieldElement, label);
+ 
+    return { container, fieldElement };
+  }
+ 
+  // Function to add context menu for setting label
+  function addContextMenuForField(fieldElement, label) {
+    fieldElement.addEventListener('contextmenu', function (event) {
+      event.preventDefault(); // Prevent default context menu
+ 
+      const contextMenu = [
+        { label: 'Set Label', action: function () { setLabel(label); } },
+        { label: 'Set ID', action: function () { setId(fieldElement); } },
+        { label: 'Set as Read-Only', action: function () { setReadOnly(fieldElement); } },
+        { label: 'Set as Editable', action: function () { setEditable(fieldElement); } },
+        { label: 'Delete', action: function () { deleteField(fieldElement.parentNode); } }
+      ];
+ 
+      if (fieldElement.tagName.toLowerCase() === 'select') {
+        // Add option to add options for select element
+        contextMenu.push({ label: 'Add Options', action: function () { addOptions(fieldElement); } });
+      }
+ 
+      // Create context menu
+      const menuContainer = document.createElement('div');
+      menuContainer.style.position = 'absolute';
+      menuContainer.style.left = event.clientX + 'px';
+      menuContainer.style.top = event.clientY + 'px';
+      menuContainer.style.backgroundColor = '#f9f9f9';
+      menuContainer.style.padding = '5px';
+      menuContainer.style.border = '1px solid #ccc';
+ 
+      contextMenu.forEach(function (item) {
+        const menuItem = document.createElement('div');
+        menuItem.textContent = item.label;
+        menuItem.style.cursor = 'pointer';
+        menuItem.onclick = function () {
+          item.action();
+          menuContainer.remove(); // Remove context menu after action
+        };
+        menuContainer.appendChild(menuItem);
+      });
+ 
+      document.body.appendChild(menuContainer);
+ 
+      // Hide context menu when clicking outside of it
+      document.addEventListener('click', function (e) {
+        if (!menuContainer.contains(e.target)) {
+          menuContainer.remove();
+        }
+      });
+    });
+  }
+ 
+  // Function to add options for the select element
+  function addOptions(selectElement) {
+    const newOption = prompt('Enter new option:');
+    if (newOption) {
+      const option = document.createElement('option');
+      option.value = newOption;
+      option.text = newOption;
+      selectElement.appendChild(option);
+    }
+  }
+ 
+  // Function to set label for the input element
+  function setLabel(label) {
+    const newLabel = prompt('Enter label:');
+    if (newLabel !== null && newLabel.trim() !== '') {
+      label.textContent = newLabel; // Set the label text
+    }
+  }
+ 
+  // Function to set ID for the input element
+  function setId(fieldElement) {
+    const id = prompt('Enter ID:');
+    if (id !== null && id.trim() !== '') {
+      fieldElement.id = id; // Set the ID
+    }
+  }
+ 
+  // Function to delete the field and associated label
+  function deleteField(container) {
+    container.remove();
+  }
+ 
+  // Function to set input field as read-only
+function setReadOnly(fieldElement) {
+  if (fieldElement.tagName.toLowerCase() === 'select') {
+    fieldElement.disabled = true;
+  } else if (fieldElement.type === 'checkbox') {
+    fieldElement.disabled = true;
+  } else if (fieldElement.type === 'radio') {
+    // Disable all radio buttons in the same group
+    const groupName = fieldElement.name;
+    const radioButtons = document.querySelectorAll(`input[name="${groupName}"]`);
+    radioButtons.forEach(radioButton => {
+      radioButton.disabled = true;
+    });
+  } else {
+    fieldElement.readOnly = true;
+  }
+}
+ 
+ // Function to set input field as editable
+function setEditable(fieldElement) {
+  if (fieldElement.tagName.toLowerCase() === 'select') {
+    fieldElement.disabled = false;
+  } else if (fieldElement.type === 'checkbox') {
+    fieldElement.disabled = false;
+  } else if (fieldElement.type === 'radio') {
+    // Enable all radio buttons in the same group
+    const groupName = fieldElement.name;
+    const radioButtons = document.querySelectorAll(`input[name="${groupName}"]`);
+    radioButtons.forEach(radioButton => {
+      radioButton.disabled = false;
+    });
+  } else {
+    fieldElement.readOnly = false;
+  }
+}
+  // Function to save dropped fields to JSON and display in output column
+  function saveFieldsToJson() {
+    // Loop through dropped fields to update values
+    droppedFields.forEach(field => {
+      const fieldElement = document.getElementById(field.id);
+      if (fieldElement) {
+        field.value = fieldElement.value || ''; // Update value
+        field.label = fieldElement.previousElementSibling.textContent; // Update label
+      }
+    });
+
+    // Convert to JSON
+    const jsonContent = JSON.stringify(droppedFields, null, 2);
+
+    // Remove array brackets
+    const trimmedJsonContent = jsonContent.substring(1, jsonContent.length - 1);
+
+    // Display JSON in output textarea
+    jsonOutput.value = trimmedJsonContent;
+
+    // Trigger download
+    const file = new Blob([jsonContent], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = 'dropped_fields.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // Event listener for the download button
+  const downloadJsonButton = document.getElementById('downloadJsonButton');
+  downloadJsonButton.addEventListener('click', saveFieldsToJson);
+</script>
+ 
+</body>
+</html>
