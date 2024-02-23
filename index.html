@@ -49,7 +49,7 @@
 </head>
 <body class="h-full">
 <div class="h-full flex">
-<div class="w-1/4 bg-gray-200 p-4"> <!-- Adjusted to 25% -->
+<div class="w-1/4 bg-gray-200 p-4 "> <!-- Adjusted to 25% -->
 <h2 class="text-lg font-bold mb-2"></h2>
 <!-- HTML code for drag items -->
 <div id="drag-items" class="border border-gray-300 p-4 mr-4">
@@ -287,22 +287,31 @@
       selectElement.appendChild(option);
     }
   }
- 
-  // Function to set label for the input element
-  function setLabel(label) {
+// Function to set label for the input element
+function setLabel(label) {
     const newLabel = prompt('Enter label:');
     if (newLabel !== null && newLabel.trim() !== '') {
-      label.textContent = newLabel; // Set the label text
+        label.textContent = newLabel; // Set the label text
+        const fieldId = label.htmlFor;
+        const field = droppedFields.find(field => field.id === fieldId);
+        if (field) {
+            field.label = newLabel; // Update label in droppedFields array
+        }
     }
-  }
+}
  
   // Function to set ID for the input element
-  function setId(fieldElement) {
+function setId(fieldElement) {
     const id = prompt('Enter ID:');
     if (id !== null && id.trim() !== '') {
-      fieldElement.id = id; // Set the ID
+        fieldElement.id = id; // Set the ID
+        const label = fieldElement.previousElementSibling;
+        const field = droppedFields.find(field => field.label === label.textContent);
+        if (field) {
+            field.id = id; // Update ID in droppedFields array
+        }
     }
-  }
+}
  
   // Function to delete the field and associated label
   function deleteField(container) {
@@ -348,31 +357,43 @@ function setEditable(fieldElement) {
   function saveFieldsToJson() {
     // Loop through dropped fields to update values
     droppedFields.forEach(field => {
-      const fieldElement = document.getElementById(field.id);
-      if (fieldElement) {
-        field.value = fieldElement.value || ''; // Update value
-        field.label = fieldElement.previousElementSibling.textContent; // Update label
-      }
+        const fieldElement = document.getElementById(field.id);
+        if (fieldElement) {
+            if (fieldElement.tagName.toLowerCase() === 'select') {
+                field.value = fieldElement.value || ''; // Update value
+                field.label = fieldElement.previousElementSibling.textContent; // Update label
+            } else if (fieldElement.type === 'checkbox') {
+                field.value = fieldElement.checked; // Update value for checkbox
+                field.label = fieldElement.previousElementSibling.textContent; // Update label
+            } else if (fieldElement.type === 'radio') {
+                // For radio buttons, check which one is selected
+                const selectedRadioButton = document.querySelector(`input[name="${fieldElement.name}"]:checked`);
+                if (selectedRadioButton) {
+                    field.value = selectedRadioButton.value; // Update value
+                    field.label = selectedRadioButton.nextElementSibling.textContent; // Update label
+                }
+            } else {
+                field.value = fieldElement.value || ''; // Update value for text fields
+                field.label = fieldElement.previousElementSibling.textContent; // Update label
+            }
+        }
     });
 
-    // Convert to JSON
-    const jsonContent = JSON.stringify(droppedFields, null, 2);
+   // Convert to JSON
+   const jsonContent = JSON.stringify(droppedFields, null, 2);
 
-    // Remove array brackets
-    const trimmedJsonContent = jsonContent.substring(1, jsonContent.length - 1);
+// Display JSON in output textarea
+jsonOutput.value = jsonContent;
 
-    // Display JSON in output textarea
-    jsonOutput.value = trimmedJsonContent;
-
-    // Trigger download
-    const file = new Blob([jsonContent], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(file);
-    a.download = 'dropped_fields.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
+// Trigger download
+const file = new Blob([jsonContent], { type: 'application/json' });
+const a = document.createElement('a');
+a.href = URL.createObjectURL(file);
+a.download = 'dropped_fields.json';
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+}
 
   // Event listener for the download button
   const downloadJsonButton = document.getElementById('downloadJsonButton');
