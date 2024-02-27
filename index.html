@@ -154,46 +154,56 @@
   }
  
   // Function to create a radio button group
-  function createRadioButtonGroup(options) {
+function createRadioButtonGroup(options, groupId, groupLabel) {
     const container = document.createElement('div');
     container.classList.add('radio-group');
     container.classList.add('field-container'); // Add class for spacing
     container.classList.add('draggable-container');
- 
+
     const groupName = `radio-group-${fieldCount}`;
- 
+    const radioOptions = []; // Array to store radio button options
+
     options.forEach(option => {
-      const radioButton = document.createElement('input');
-      radioButton.type = 'radio';
-      radioButton.name = groupName;
-      radioButton.value = option.value;
- 
-      const label = document.createElement('label');
-      label.textContent = option.label;
- 
-      container.appendChild(radioButton);
-      container.appendChild(label);
- 
-      // Add line break
-      container.appendChild(document.createElement('br'));
- 
-      // Set unique ID for radio button
-      const id = `${option.label}-radio-${fieldCount}`;
-      radioButton.id = id;
-      label.htmlFor = id;
- 
-      // Add context menu for setting label
-      addContextMenuForField(radioButton, label);
+        const radioButton = document.createElement('input');
+        radioButton.type = 'radio';
+        radioButton.name = groupName;
+        radioButton.value = option.value;
+
+        const label = document.createElement('label');
+        label.textContent = option.label;
+
+        container.appendChild(radioButton);
+        container.appendChild(label);
+
+        // Add line break
+        container.appendChild(document.createElement('br'));
+
+        // Set unique ID for radio button
+        const id = `radio-${fieldCount}-${option.value}`; // Use a unique ID for each radio button
+        radioButton.id = id;
+        label.htmlFor = id;
+
+        // Store the IDs and labels of radio buttons
+        radioOptions.push({ id: id, label: option.label,value: option.value });
+
+        // Add context menu for setting label to each radio button
+        addContextMenuForField(radioButton, label);
     });
- 
+
     // Make the container draggable
     container.draggable = true;
- 
+
+    // Append the container to the form or the DOM
+    form.appendChild(container); // You can change this to the appropriate container if needed
+
+    // Add the dropped field to the array with label, ID, and value
+    droppedFields.push({ id: groupId, label: groupLabel, options: radioOptions }); // Set initial value to false
+
     // Increment field count
     fieldCount++;
- 
+
     return { container };
-  }
+}
  
   // Function to create a field (input or select)
   function createField(tagName, type, placeholder) {
@@ -355,6 +365,10 @@ function setEditable(fieldElement) {
 }
   // Function to save dropped fields to JSON and display in output column
   function saveFieldsToJson() {
+
+        // Update radio button fields
+        updateRadioButtonFields();
+
     // Loop through dropped fields to update values
     droppedFields.forEach(field => {
         const fieldElement = document.getElementById(field.id);
@@ -378,6 +392,24 @@ function setEditable(fieldElement) {
             }
         }
     });
+
+
+// Function to update dropped fields for radio button groups
+function updateRadioButtonFields() {
+    droppedFields.forEach(field => {
+        if (field.options && field.options.length > 0) {
+            field.options.forEach(option => {
+                const radioButton = document.getElementById(option.id);
+                if (radioButton) {
+                    option.label = radioButton.nextElementSibling.textContent;
+                    option.id = radioButton.id;
+                    option.value = radioButton.checked;
+                }
+            });
+        }
+    });
+}
+
 
    // Convert to JSON
    const jsonContent = JSON.stringify(droppedFields, null, 2);
